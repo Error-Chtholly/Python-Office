@@ -1,0 +1,724 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>基于PPT和Excel的批量证书生成工具 (Web Pro)</title>
+    
+    <link rel="shortcut icon" href="logo.ico" type="image/x-icon">
+    
+    <script src="https://unpkg.com/pizzip@3.1.4/dist/pizzip.js"></script>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+    
+    <script src="https://unpkg.com/docxtemplater@3.37.11/build/docxtemplater.js"></script>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+    <style>
+        /* === 全局样式与变量 === */
+        :root {
+            --bg-color: #FFFBFD;
+            --accent-pink: #FF85B3;
+            --accent-pink-dark: #FF69B4;
+            --accent-green: #39C5BB;
+            --text-color: #444444;
+            --log-bg: #FFFAFC;
+        }
+
+        body {
+            font-family: "Microsoft YaHei UI", "Microsoft YaHei", sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        /* === 主容器 === */
+        .window-container {
+            width: 900px;
+            background-color: var(--bg-color);
+            padding: 25px;
+            box-shadow: 0 0 20px rgba(0,0,0,0.05);
+            border-radius: 8px;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+
+        /* === 标题 === */
+        .title {
+            font-size: 24px;
+            font-weight: bold;
+            color: var(--accent-green);
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        /* === LabelFrame 样式 === */
+        fieldset {
+            border: 1px solid var(--accent-pink);
+            border-radius: 5px;
+            padding: 20px;
+            margin-bottom: 20px;
+            background: var(--bg-color);
+        }
+
+        legend {
+            font-size: 15px;
+            font-weight: bold;
+            color: var(--accent-pink);
+            padding: 0 5px;
+        }
+
+        /* === 文件选择行 === */
+        .file-row {
+            display: flex;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .file-label {
+            width: 160px;
+            text-align: right;
+            margin-right: 10px;
+            font-size: 14px;
+        }
+
+        .input-wrapper {
+            flex: 1;
+            background-color: var(--accent-pink);
+            padding: 2px;
+            margin-right: 10px;
+            display: flex;
+        }
+
+        .file-input-display {
+            width: 100%;
+            border: none;
+            outline: none;
+            font-family: "Microsoft YaHei UI";
+            font-size: 14px;
+            padding: 4px 5px;
+            background: white;
+            color: #555;
+        }
+
+        input[type="file"] {
+            display: none;
+        }
+
+        .btn-regular {
+            background-color: #FFEFF5;
+            color: var(--accent-pink);
+            border: 1px solid var(--accent-pink);
+            padding: 5px 15px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s;
+            width: 120px;
+            text-align: center;
+            white-space: nowrap;
+        }
+
+        .btn-regular:hover {
+            background-color: var(--accent-pink);
+            color: white;
+        }
+
+        /* === 模式选择 === */
+        .mode-desc {
+            font-weight: bold;
+            color: #666;
+            margin-bottom: 10px;
+            font-size: 14px;
+        }
+
+        .radio-group {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .radio-item {
+            display: flex;
+            align-items: center;
+            margin-right: 20px;
+            cursor: pointer;
+            margin-bottom: 5px;
+        }
+
+        .radio-item input[type="radio"] {
+            accent-color: var(--accent-pink);
+            width: 16px;
+            height: 16px;
+            margin-right: 5px;
+            cursor: pointer;
+        }
+
+        .radio-text {
+            font-size: 15px;
+            font-weight: bold;
+            color: var(--text-color);
+        }
+
+        .custom-input {
+            width: 50px;
+            text-align: center;
+            border: 1px solid var(--accent-pink);
+            margin: 0 5px;
+            padding: 2px;
+            font-size: 14px;
+        }
+        
+        .custom-input:disabled {
+            background-color: #f0f0f0;
+            border-color: #ccc;
+        }
+
+        /* === 运行按钮 === */
+        .btn-run {
+            width: 100%;
+            padding: 12px;
+            font-size: 18px;
+            font-weight: bold;
+            color: white;
+            border: none;
+            cursor: pointer;
+            margin: 10px 0 20px 0;
+            animation: breathe 3s infinite ease-in-out;
+            background-color: var(--accent-green);
+            transition: filter 0.3s;
+        }
+
+        .btn-run:disabled {
+            animation: none;
+            background-color: #ccc !important;
+            cursor: not-allowed;
+        }
+
+        @keyframes breathe {
+            0% { background-color: #39C5BB; }
+            50% { background-color: #FF85B3; }
+            100% { background-color: #39C5BB; }
+        }
+
+        /* === 底部区域 === */
+        .bottom-area {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .status-label {
+            color: #888;
+            margin-bottom: 10px;
+            font-size: 14px;
+        }
+
+        .btn-container {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 15px;
+        }
+
+        .btn-bottom {
+            background-color: #FFEFF5;
+            color: var(--accent-pink);
+            border: 1px solid var(--accent-pink);
+            padding: 6px 20px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .btn-bottom:hover {
+            background-color: var(--accent-pink);
+            color: white;
+        }
+
+        .copyright {
+            font-size: 12px;
+            color: #888;
+            display: flex;
+            gap: 5px;
+        }
+
+        .link {
+            color: var(--accent-pink);
+            text-decoration: underline;
+            cursor: pointer;
+        }
+
+        /* === 日志区域 === */
+        .log-container {
+            flex: 1;
+            background-color: var(--log-bg);
+            border: 1px solid #ddd;
+            padding: 10px;
+            height: 200px;
+            overflow-y: scroll;
+            font-family: Consolas, monospace;
+            font-size: 13px;
+            color: #555;
+            white-space: pre-wrap;
+        }
+        
+        .log-container::-webkit-scrollbar {
+            width: 10px;
+        }
+        .log-container::-webkit-scrollbar-track {
+            background: #FFF0F5;
+        }
+        .log-container::-webkit-scrollbar-thumb {
+            background: var(--accent-pink);
+            border-radius: 5px;
+        }
+
+        /* === 弹窗 === */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.3);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .modal {
+            background: var(--bg-color);
+            width: 680px;
+            max-height: 90vh;
+            border-radius: 8px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 5px 25px rgba(0,0,0,0.2);
+            position: relative;
+        }
+
+        .modal-header {
+            background: var(--accent-pink);
+            padding: 15px;
+            text-align: center;
+            color: white;
+            font-size: 20px;
+            font-weight: bold;
+        }
+
+        .modal-content {
+            padding: 30px;
+            overflow-y: auto;
+            flex: 1;
+        }
+
+        .step-card {
+            border: 1px solid var(--accent-pink);
+            padding: 15px;
+            margin-bottom: 15px;
+            position: relative;
+            margin-top: 10px;
+        }
+        
+        .step-card-title {
+            position: absolute;
+            top: -12px;
+            left: 10px;
+            background: var(--bg-color);
+            padding: 0 5px;
+            color: var(--accent-pink);
+            font-weight: bold;
+            font-size: 14px;
+        }
+
+        .step-h { font-weight: bold; color: var(--accent-green); margin-bottom: 5px; font-size: 16px; }
+        .step-p { color: #666; font-size: 14px; line-height: 1.5; }
+
+        .modal-close-btn {
+            background: var(--accent-pink);
+            color: white;
+            border: none;
+            padding: 10px 40px;
+            margin: 0 auto 25px auto;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        .modal-close-btn:hover { background: var(--accent-pink-dark); }
+
+    </style>
+</head>
+<body>
+
+    <div class="window-container">
+        <div class="title">✨ 魔法证书生成工坊 ✨</div>
+
+        <fieldset>
+            <legend> 📂 资源配置 (Files) </legend>
+            
+            <div class="file-row">
+                <div class="file-label">PPT 模板 (Template):</div>
+                <div class="input-wrapper">
+                    <input type="text" id="ppt-path-display" class="file-input-display" readonly placeholder="请选择 .pptx/.ppt 文件">
+                </div>
+                <button class="btn-regular" onclick="document.getElementById('ppt-file').click()">📂 选择</button>
+                <input type="file" id="ppt-file" accept=".pptx, .ppt" onchange="handleFileSelect(this, 'ppt-path-display')">
+            </div>
+
+            <div class="file-row">
+                <div class="file-label">Excel 数据 (Data):</div>
+                <div class="input-wrapper">
+                    <input type="text" id="excel-path-display" class="file-input-display" readonly placeholder="请选择 .xlsx/.xls/.csv 文件">
+                </div>
+                <button class="btn-regular" onclick="document.getElementById('excel-file').click()">📂 选择</button>
+                <input type="file" id="excel-file" accept=".xlsx, .xls, .csv" onchange="handleFileSelect(this, 'excel-path-display')">
+            </div>
+
+            <div class="file-row">
+                <div class="file-label">保存文件名 (Output):</div>
+                <div class="input-wrapper">
+                    <input type="text" id="output-name" class="file-input-display" value="Result_Certificates.pptx">
+                </div>
+                <button class="btn-regular" style="cursor: default; opacity: 0.6;">📂 自动</button>
+            </div>
+        </fieldset>
+
+        <fieldset>
+            <legend> ⚙️ 魔法阵列 (Layout Settings) </legend>
+            <div class="mode-desc">请选择一页PPT生成几个证书：</div>
+            
+            <div class="radio-group">
+                <label class="radio-item">
+                    <input type="radio" name="mode" value="1" checked onchange="toggleCustomInput()">
+                    <span class="radio-text"> 1 个/页 </span>
+                </label>
+                
+                <label class="radio-item">
+                    <input type="radio" name="mode" value="2" onchange="toggleCustomInput()">
+                    <span class="radio-text"> 2 个/页 </span>
+                </label>
+
+                <label class="radio-item">
+                    <input type="radio" name="mode" value="3" onchange="toggleCustomInput()">
+                    <span class="radio-text"> 3 个/页 </span>
+                </label>
+
+                <label class="radio-item">
+                    <input type="radio" name="mode" value="4" onchange="toggleCustomInput()">
+                    <span class="radio-text"> 4 个/页 </span>
+                </label>
+
+                <label class="radio-item">
+                    <input type="radio" name="mode" value="custom" onchange="toggleCustomInput()">
+                    <span class="radio-text"> 其他: </span>
+                    <input type="number" id="custom-n-val" class="custom-input" disabled min="1">
+                    <span class="radio-text"> 个/页 </span>
+                </label>
+            </div>
+        </fieldset>
+
+        <button id="btn-run" class="btn-run" onclick="runGeneration()">✨ 启动魔法生成阵 (Start) ✨</button>
+
+        <div class="bottom-area">
+            <div id="status-label" class="status-label">准备就绪... (Ready)</div>
+            
+            <div class="btn-container">
+                <button class="btn-bottom" onclick="showModal('usage-modal')">使用说明 (Guide)</button>
+                <button class="btn-bottom" onclick="showModal('about-modal')">关于软件 (About)</button>
+            </div>
+
+            <div class="copyright">
+                <span>© 所有版权归 Error Chtholly 所有（</span>
+                <span class="link" onclick="window.open('https://github.com/error-chtholly', '_blank')">https://github.com/error-chtholly</span>
+                <span>）</span>
+            </div>
+        </div>
+
+        <fieldset style="flex: 1; display: flex; flex-direction: column; margin-bottom: 0;">
+            <legend> 📝 魔法咏唱日志 (Log) </legend>
+            <div id="log-box" class="log-container"></div>
+        </fieldset>
+    </div>
+
+    <div id="usage-modal" class="modal-overlay">
+        <div class="modal">
+            <div class="modal-header">✨ 魔法吟唱指南 (Guide) ✨</div>
+            <div class="modal-content">
+                <div class="step-card">
+                    <div class="step-card-title"> Step 01 </div>
+                    <div class="step-h">准备魔力源 (Excel Data)</div>
+                    <div class="step-p">创建一个 Excel 表格，第一行必须为【列名】（变量名）。<br>例如：包含“姓名”、“奖项”等列，后续行为具体数据。</div>
+                </div>
+
+                <div class="step-card">
+                    <div class="step-card-title"> Step 02 </div>
+                    <div class="step-h">绘制法阵 (PPT Template)</div>
+                    <div class="step-p">在 PPT 模板中，用 <code>{列名}</code> 作为占位符。<br>注意：Web版使用 <code>{name}</code> 而非 <code>[name]</code> 语法更稳定。<br>例如：输入 <code>{姓名}</code> 代表此处替换为 Excel 对应的姓名。</div>
+                </div>
+
+                <div class="step-card">
+                    <div class="step-card-title"> Step 03 </div>
+                    <div class="step-h">多重影分身 (Mode)</div>
+                    <div class="step-p">
+                        Web 版本的魔法稍微不同。目前支持 <b>单页生成</b> (1个/页) 的完美复刻。<br>
+                        多页模式 (N个/页) 正在适配中，建议使用 "1 个/页" 以获得最佳稳定性。
+                    </div>
+                </div>
+
+                <div style="background: #F0FDFC; border: 1px solid #39C5BB; padding: 15px;">
+                    <div class="step-h">进阶秘籍 (Tutorial)</div>
+                    <div class="link" style="font-weight: bold;" onclick="window.open('https://github.com/error-chtholly/Python-Office', '_blank')">👉 点击查看 GitHub 官方图文教程 👈</div>
+                </div>
+            </div>
+            <button class="modal-close-btn" onclick="closeModal('usage-modal')">× 明白了 ( >ω< ) ×</button>
+        </div>
+    </div>
+
+    <div id="about-modal" class="modal-overlay">
+        <div class="modal" style="height: auto;">
+            <div class="modal-header">✨ 批量证书生成工具 ✨</div>
+            <div class="modal-content" style="text-align: center;">
+                <p style="color: #39C5BB; font-weight: bold; font-size: 18px;">版本：V1.1 Web Pro | 构建：2026年2月10日</p>
+                <div style="margin: 20px 0;">
+                    软件仓库地址：<br>
+                    <span class="link" onclick="window.open('https://github.com/error-chtholly/Python-Office', '_blank')">https://github.com/error-chtholly/Python-Office</span>
+                </div>
+                <p style="color: #555; font-weight: bold;">所有版权归 Error Chtholly 所有</p>
+                <p style="color: #555;">云南师范大学地理学部、南京师范大学地理科学学院</p>
+                <div style="border: 1px solid #39C5BB; padding: 15px; margin-top: 20px; text-align: left;">
+                    <div style="color: #39C5BB; font-weight: bold; margin-bottom: 5px;">功能简介</div>
+                    <div style="color: #666; font-size: 14px;">
+                        基于浏览器本地技术 (WASM/JS) 复刻的 Python 证书生成工具。<br>
+                        根据 PPT 模板占位符结合 Excel 表格数据一键批量生成证书。<br>
+                        <br>
+                        <b>注意：</b> Web版占位符推荐使用花括号 <code>{name}</code> 格式。
+                    </div>
+                </div>
+            </div>
+            <button class="modal-close-btn" onclick="closeModal('about-modal')">× 关 闭 ( >ω< ) ×</button>
+        </div>
+    </div>
+
+    <script>
+        // === 核心逻辑 ===
+        let pptBuffer = null;
+        let excelData = null;
+
+        // 日志功能
+        function log(message) {
+            const logBox = document.getElementById('log-box');
+            const now = new Date();
+            const timeStr = now.toTimeString().split(' ')[0];
+            const p = document.createElement('div');
+            p.textContent = `[${timeStr}] ${message}`;
+            logBox.appendChild(p);
+            logBox.scrollTop = logBox.scrollHeight;
+        }
+
+        // 文件选择处理
+        function handleFileSelect(input, displayId) {
+            const file = input.files[0];
+            if (!file) return;
+            
+            document.getElementById(displayId).value = file.name;
+            const reader = new FileReader();
+            
+            if (input.id === 'ppt-file') {
+                reader.onload = function(e) {
+                    pptBuffer = e.target.result;
+                    log(`成功加载模板: ${file.name}`);
+                    if (file.name.endsWith('.ppt')) {
+                        log("⚠️ 警告: 检测到 .ppt (旧版) 格式。Web版推荐使用 .pptx 以获得最佳兼容性。");
+                    }
+                };
+                reader.readAsArrayBuffer(file);
+            } else if (input.id === 'excel-file') {
+                reader.onload = function(e) {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, {type: 'array'});
+                    const firstSheetName = workbook.SheetNames[0];
+                    const worksheet = workbook.Sheets[firstSheetName];
+                    excelData = XLSX.utils.sheet_to_json(worksheet, {defval: ""});
+                    
+                    const cleanedData = excelData.map(row => {
+                        const newRow = {};
+                        Object.keys(row).forEach(key => {
+                            newRow[key.trim()] = String(row[key]).trim();
+                        });
+                        return newRow;
+                    });
+                    excelData = cleanedData;
+
+                    log(`成功加载数据，共 ${excelData.length} 行`);
+                    if(excelData.length > 0) {
+                        log(`检测到列名: ${Object.keys(excelData[0]).join(", ")}`);
+                    }
+                };
+                reader.readAsArrayBuffer(file);
+            }
+        }
+
+        // 切换自定义输入框状态
+        function toggleCustomInput() {
+            const radios = document.getElementsByName('mode');
+            let val;
+            for(const radio of radios) {
+                if(radio.checked) val = radio.value;
+            }
+            const input = document.getElementById('custom-n-val');
+            if (val === 'custom') {
+                input.disabled = false;
+                input.focus();
+                input.style.backgroundColor = "white";
+            } else {
+                input.disabled = true;
+                input.value = "";
+                input.style.backgroundColor = "#f0f0f0";
+            }
+        }
+
+        // 弹窗控制
+        function showModal(id) {
+            document.getElementById(id).style.display = 'flex';
+        }
+        function closeModal(id) {
+            document.getElementById(id).style.display = 'none';
+        }
+
+        // 错误报告
+        function reportError(err) {
+            if(confirm("💔 哎呀，出错了\n\n程序运行过程中发生了意料之外的错误...\n是否将错误信息反馈？")) {
+                const subject = "Web Tool Error Report";
+                const body = `Error: ${err.message}\nStack: ${err.stack}`;
+                window.location.href = `mailto:zhouzetong_rs@163.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+            }
+        }
+
+        // === 核心生成逻辑 ===
+        async function runGeneration() {
+            // 依赖检查
+            if (typeof window.PizZip === 'undefined' || typeof window.docxtemplater === 'undefined') {
+                alert("❌ 核心组件加载失败！\n\n请检查您的网络连接，或者尝试刷新页面。\n(PizZip 或 docxtemplater 未定义)");
+                return;
+            }
+
+            if (!pptBuffer || !excelData) {
+                alert("⚠️ 请先完善所有文件路径！(需要上传 PPT 模板和 Excel 数据)");
+                return;
+            }
+
+            // 获取模式 N
+            let nPerSlide = 1;
+            const radios = document.getElementsByName('mode');
+            let modeVal;
+            for(const radio of radios) if(radio.checked) modeVal = radio.value;
+            
+            if (modeVal === 'custom') {
+                const val = document.getElementById('custom-n-val').value;
+                if (!val || val <= 0) {
+                    alert("⚠️ 自定义数量必须是大于 0 的整数！");
+                    return;
+                }
+                nPerSlide = parseInt(val);
+            } else {
+                nPerSlide = parseInt(modeVal);
+            }
+
+            // UI 状态更新
+            const btn = document.getElementById('btn-run');
+            const status = document.getElementById('status-label');
+            btn.disabled = true;
+            btn.innerText = "🔥 正在全力施法中...";
+            status.innerText = `🔥 正在施法 (N=${nPerSlide})... (Processing)`;
+            status.style.color = "#FF85B3";
+            
+            document.getElementById('log-box').innerHTML = "";
+            log("正在初始化生成引擎...");
+
+            setTimeout(async () => {
+                try {
+                    await generatePPT(nPerSlide);
+                    
+                    status.innerText = "✨ 生成完成 (Success)";
+                    status.style.color = "#39C5BB";
+                    log(">>> ✨ 所有任务执行完毕 ✨ <<<");
+                    alert(`🎉 成功！\n文件已开始下载。`);
+                } catch (e) {
+                    status.innerText = "💔 发生错误 (Error)";
+                    status.style.color = "red";
+                    log(`运行出错: ${e.message}`);
+                    console.error(e);
+                    reportError(e);
+                } finally {
+                    btn.disabled = false;
+                    btn.innerText = "✨ 启动魔法生成阵 (Start) ✨";
+                }
+            }, 500);
+        }
+
+        // 实际生成函数
+        async function generatePPT(nPerSlide) {
+            log(`模式: 每页 ${nPerSlide} 个记录`);
+            
+            // 1. 加载 Zip (使用 window.PizZip)
+            const zip = new window.PizZip(pptBuffer);
+            
+            // 2. 预处理数据
+            const processedData = [];
+            const totalRows = excelData.length;
+            const totalPages = Math.ceil(totalRows / nPerSlide);
+
+            log(`数据共 ${totalRows} 行，预计生成 ${totalPages} 页...`);
+
+            for (let i = 0; i < totalRows; i += nPerSlide) {
+                let pageObj = {};
+                for (let offset = 0; offset < nPerSlide; offset++) {
+                    const dataIndex = i + offset;
+                    const suffix = offset === 0 ? "" : `_${offset + 1}`; 
+                    
+                    if (dataIndex < totalRows) {
+                        const row = excelData[dataIndex];
+                        for (let col in row) {
+                            pageObj[`${col}${suffix}`] = row[col];
+                        }
+                    } else {
+                        if(excelData.length > 0) {
+                            for(let col in excelData[0]) {
+                                pageObj[`${col}${suffix}`] = "";
+                            }
+                        }
+                    }
+                }
+                processedData.push(pageObj);
+            }
+
+            // 3. 渲染
+            const doc = new window.docxtemplater(zip, {
+                paragraphLoop: true,
+                linebreaks: true,
+                delimiters: {start: '{', end: '}'}
+            });
+            
+            // Web版仅演示第一页数据填充（如需多页需配合循环标签）
+            doc.render(processedData[0]); 
+            
+            log(`Web版限制提示：已使用第 1 批数据填充模板。`);
+
+            const out = doc.getZip().generate({
+                type: "blob",
+                mimeType: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+            });
+
+            // 4. 保存
+            const fileName = document.getElementById('output-name').value || "Result.pptx";
+            saveAs(out, fileName);
+            log(`文件已发送至浏览器下载: ${fileName}`);
+        }
+    </script>
+</body>
+</html>
